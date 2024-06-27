@@ -8,7 +8,7 @@ from datetime import datetime
 import chess, chess.engine, chess.pgn, os, json, multiprocessing, pyperclip, io
 
 #QCostants
-VER="0.21.2, June 27th, 2024"
+VER="0.21.0, June 26th, 2024"
 CONFIG_FILE = "easyfish.json"
 PGN_FILE_PATH = "Easyfish games collection.pgn"
 DEFAULT_EVENT="Having fun with Easyfish"
@@ -266,7 +266,7 @@ def DisambiguateMove(board, move):
 					disambiguation = COLUMN_TO_NATO[chess.FILE_NAMES[chess.square_file(move.from_square)]] + " " + str(chess.square_rank(move.from_square) + 1)
 				break
 	return disambiguation
-def MoveToString(board, move):
+def move_to_string(board, move):
 	piece = board.piece_at(move.from_square)
 	if piece is None:
 		return "Invalid move"
@@ -524,71 +524,80 @@ def GetPieceMoves(piece_symbol, square_str, legal_moves=True, occupied_only_squa
 			current_line += word + ' '
 	result += current_line.strip()
 	return result
-def ExplorerMode(game, engine):
+def explorer_mode(game, engine):
 	node = game
-	initial_board = CustomBoard()
-	global analysis_time
-	def SyncBoardToNode(node):
+	level = 0
+	initial_board = CustomBoard()  # Usa la scacchiera personalizzata
+	global analysis_time  # Dichiara 'analysis_time' come globale all'inizio della funzione
+
+	# Funzione per sincronizzare la scacchiera fino al nodo corrente
+	def sync_board_to_node(node):
 		board = initial_board.copy()
 		move_stack = []
 		while node.parent:
 			move_stack.append(node.move)
 			node = node.parent
-		move_stack.reverse()
+		move_stack.reverse()  # Invertiamo la pila per applicare le mosse nell'ordine corretto
 		for move in move_stack:
 			if move:
 				board.push(move)
 		return board
-	def GetPrincipalVariationSan(board, pv):
-		temp_board = board.copy()
-		san_moves = []
-		for move in pv:
-			san_moves.append(temp_board.san(move))
-			temp_board.push(move)
-		return san_moves
-	current_board = SyncBoardToNode(node)
+
+	current_board = sync_board_to_node(node)
+
 	while True:
+		print(f"Current board FEN: {current_board.fen()}")  # Debug
 		if node.parent:
-			parent_move = node.parent.san() if node.parent.move else None
+			parent_move = node.parent.move
 		else:
 			parent_move = None
+
 		if node.move:
-			current_move = node.san()
+			current_move = node.move
+			try:
+				current_move_str = node.san()  # Utilizza chess.pgn.ChildNode.san
+			except Exception as e:
+				current_move_str = f"invalid move ({e})"
 		else:
-			current_move = "start"
+			current_move = None
+			current_move_str = "start"
+
 		if node.variations:
-			next_move = node.variations[0].san()
+			next_move = node.variations[0].move
+			try:
+				next_move_str = node.variations[0].san()  # Utilizza chess.pgn.ChildNode.san per la variazione
+			except Exception as e:
+				next_move_str = f"invalid move ({e})"
 			variant_count = len(node.variations)
 		else:
-			next_move = game.headers.get("Result", "end")
+			next_move = None
+			next_move_str = game.headers.get("Result", "end")
 			variant_count = 0
+
 		if node.comment:
 			print(node.comment)
-		level = 0
-		temp_node = node
-		while temp_node.parent:
-			if len(temp_node.parent.variations) > 1:
-				level += 1
-			temp_node = temp_node.parent
-		level_prefix = f"Lvl{level}" if level > 0 else "Mainline"
-		prompt = f"\n[{level_prefix}] {parent_move or ''} ({current_move}) {next_move}"
+
+		prompt = f"[Lvl{level}] {parent_move} ({current_move_str}) {next_move_str}"
 		if variant_count > 1:
 			prompt += f" V{variant_count}"
+
 		command = key(prompt=prompt)
+
 		if command == 'a':
 			if node.parent:
 				node = node.parent
-				current_board = SyncBoardToNode(node)
+				current_board = sync_board_to_node(node)  # Sincronizza la scacchiera fino al nodo corrente
+				if level > 0:
+					level -= 1
 			else:
-				print("No previous move")
-		elif command == '?': menu(d=MNEXPLORER,show=True)
+				print("no previous move")
 		elif command == 'd':
 			if node.variations:
 				if variant_count > 1:
 					while True:
 						var_index = 0
 						while True:
-							var_prompt = f"\nVariant {var_index+1}/{variant_count}: {node.variations[var_index].san()}"
+							var_prompt = f"Variant {var_index+1}/{variant_count}: {node.variations[var_index].san()}"
 							var_command = key(prompt=var_prompt)
 							if var_command == 'x' and var_index < variant_count - 1:
 								var_index += 1
@@ -596,46 +605,47 @@ def ExplorerMode(game, engine):
 								var_index -= 1
 							elif var_command == 'd':
 								node = node.variations[var_index]
-								current_board.push(node.move)
+								current_board.push(node.move)  # Applica la mossa per aggiornare la posizione
+								level += 1
 								break
 							elif var_command == chr(27):  # ESC key
 								return
 						break
 				else:
 					node = node.variations[0]
-					current_board.push(node.move)
+					current_board.push(node.move)  # Applica la mossa per aggiornare la posizione
+					level += 1
 			else:
 				print("end of the game")
 		elif command == 'q':
 			node = game
-			current_board = SyncBoardToNode(node)  # Ripristina la scacchiera iniziale
+			current_board = sync_board_to_node(node)  # Ripristina la scacchiera iniziale
+			level = 0
 		elif command == 'e':
 			while node.variations:
 				node = node.variations[0]
 				current_board.push(node.move)  # Applica la mossa per aggiornare la posizione
+				level += 1
 		elif command == 'z':
 			while node.parent and node.parent.variations[0] != node:
 				node = node.parent
-				current_board = SyncBoardToNode(node)
+				current_board = sync_board_to_node(node)  # Sincronizza la scacchiera fino al nodo corrente
+				level -= 1
 			if node.parent:
 				node = node.parent
-				current_board = SyncBoardToNode(node)
+				current_board = sync_board_to_node(node)  # Sincronizza la scacchiera fino al nodo corrente
+				level -= 1
 		elif command == 'c':
 			if node.comment:
 				print(node.comment)
 		elif command == 's':
-			current_board = SyncBoardToNode(node)
-			print("Analyzing...")
 			analysis = engine.analyse(current_board, chess.engine.Limit(time=analysis_time))
-			best_move_san = current_board.san(analysis['pv'][0])
-			principal_variation_san = ' '.join(GetPrincipalVariationSan(current_board, analysis['pv']))
-			print("\nBest move:", best_move_san)
-			print("Best line:", principal_variation_san)
+			print("Best move:", current_board.san(analysis['pv'][0]))
+			print("Principal variation:", ' '.join(current_board.san(move) for move in analysis['pv']))
 		elif command == 'r':
-			new_time = dgt(prompt="Enter analysis time in seconds: ", kind="i", imin=1,imax=1800)
+			new_time = dgt(prompt="Enter analysis time in seconds: ", kind="i", imin=1)
 			analysis_time = new_time
-		elif command == chr(27):
-			print()
+		elif command == chr(27):  # ESC key
 			return
 engine_path, config = GetEngineSet()
 if engine_path:
@@ -648,7 +658,7 @@ if engine_path:
 	# Configure other parameters if needed
 
 #QV
-analysis_time = 2
+analysis_time = 5
 info, pv, multipv = {}, '', 3
 fen_from_clip=""
 board = CustomBoard()
@@ -672,7 +682,7 @@ while True:
 		if key_command == ".q": break
 		elif key_command==".e":
 			print("Entering Explorer mode...")
-			ExplorerMode(game, engine)
+			explorer_mode(game, engine)
 		elif key_command==".b": print(board)
 		elif key_command==".bm":
 			white, black = CalculateMaterial(board)
@@ -807,7 +817,7 @@ while True:
 			elif key_command[0] in "rnqk": key_command=key_command[0].upper()+key_command[1:]
 			try:
 				move=board.parse_san(key_command)
-				print(MoveToString(board, move))
+				print(move_to_string(board, move))
 				board.push(move)
 				node = node.add_main_variation(move)
 				prompt=f"{board.fullmove_number}... {board.san_and_push(board.pop())}: " if board.turn else f"{board.fullmove_number}. {board.san_and_push(board.pop())}: "
