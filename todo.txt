@@ -3,40 +3,21 @@ m. tutte 4 da verificare. copia incolla.
 o. lichess
 r. x da testare edit di una scacchiera vuota
 t. gestione varianti
-	# Aggiungere una variante (ad esempio, 2... Nc6)
-	node_parent = node.parent
-	variant = node_parent.add_variation(chess.Move.from_uci("b8c6"))
-	variant.comment = "Alternative defense with Nc6"
-	node.variations ci sono varianti?
+	Aggiungiamo la possibilità di inserire varianti.
+	.v dal menù principale, aprirà una nuova variante. Da quel momento, tutte le mosse aggiunte andranno nel ramo variante appena aperto.
+	La variante si conclude in caso di risultato partita, stallo, patta, matto, oppure col comando .vok che farà tornare al ramo mainline.
+	se .vok viene dato al di fuori di una variante, avremo la risposta: no variant e il comando non avrà effetto.
+	quando ci si trova all'interno di una variante, il prompt riporterà l'ultima mossa del ramo princiale e la dicitura LvlX, dove x indica il livello della variante: 1 se è il primo ramo aperto dalla mainline, 2 se si tratta di una variante della variante e così via. .vok scende di un livello chiudendo il ramo attuale.
+	Un modello di prompt di questo tipo:
+	15. Qc6 Lvl1 c4 >
+	indica che alla mossa 15, che era Qc6, si è aperta una variante la cui prima mossa è c4.
+	Se dopo c4 apro un altro ramo con .v avrò:
+	15. c4 Lvl2 >
+	che attende la prima mossa della sottovariante di c4.
 u. inserire analisi in commento con _a
 v. X da testare, si può incollare una intera partita?
 w. x testare, copiata pgn negli appunti
-x. Explorer mode
-In questa modalità si entra in una sessione speciale del programma che permette di navigare nell'albero delle mosse fatte, o precedentemente caricate con un PGN.
-Il comando per accedervi dal menù principale sarà .e e la voce si chiamerà "Explorer mode".
-In questo modulo, l'input da tastiera sarà dato dalla funzione key() che importo da una mia libreria di nome GBUtils. key() riceve una stringa prompt= e restituisce un singolo carattere quando l'utente lo preme sulla tastiera. Questo carattere è una stringa anch'esso.
-il prompt da passare a key sarà di questo tipo:
-	[Main] 4. Nc4 (Be6) 5. Qb8
-	dove Main indica che ci si trova nella mainline, oppure LvlX dove x indica il livello della variante,1 se di primo livello cioè figlia del main e così via.
-	Fra parentesi tonde la mossa attuale preceduta da quella precedente e seguita da quella successiva.
-	Se prima non ci sono mosse, ad esempio se si entra in Explorer mode alla mossa 1. non si riporta niente prima.
-	Se dopo la mossa attuale non ce ne sono altre perchè la partita è finita si riporta il risultato impostato nel PGN.
-	Se alla successiva si apre un ramo di varianti, si riporta il numero di varianti da scegliere con VX, dove X rappresenta quanti rami di varianti si apriranno.
-Il modo Explorer avrà un suo menù con scelte specifiche, eccole.
-	a va alla mossa precedente, se non ce ne sono, stampa no preview move;
-	d va alla mossa successiva, se la partita è finita stampa end of the game, se c'è un nodo con più varianti apre un ulteriore menù.
-		in questo menù la x scende e la w sale fra le varianti a disposizione di cui verrà presentata la prima mossa
-		d confermerà la variante scelta e proseguirà su quel ramo;
-	se la mossa visualizzata ha un commento, questo verrà stampato
-	la q tornerà ad inizio partita;
-	la e salterà all'ultima mossa;
-	la z uscirà dalla variante tornando al nodo da cui essa è iniziata;
-	la c ripeterà la stampa del commento di quella specifica mossa;
-	la s farà eseguire un'analisi della posizione al motore per un determinato numero di secondi, quindi riporterà la best move e la linea principale analizzata. Tutto in formato SAN;
-	la r imposterà il numero di secondi per l'analisi richiamata da s;
-	esc, cioè  ord(27) uscirà dalla modalità Explorer tornando al menù principale e si rimarrà al punto mossa raggiunto in esplorazione.
-Questa è la descrizione della nuova funzionalità che voglio aggiungere. Pensi di essere in grado di scriverla per me?
-Rispetta nomi e sintassi del progetto originale, 1 tab per indentare e, date le dimensioni del file, forse è il caso che non visualizzi tutto il codice ma che mi fai scaricare il file, oppure che riporti solo le parti da aggiungere e modificare.
+x. Fatto, completare test. Explorer mode
 y. caricare da pgn molte partite e scegliere quale Vedere
 	# Carica il file PGN
 	def load_pgn(filename):
@@ -88,7 +69,6 @@ AA. print(board) anche su appunti
 AC. in esplora pezzi "," aggiungere comando per tutti i Bianchi e tutti i neri
 AD. eventualmente, punto AC, per i pezzi inchiodati.
 AE. aggiungere pinned nella lista dei pezzi riportati assieme alle case quando si esplora la scacchiera.
-AG. .v per aggiungere variante
 AH inventare un comando per concludere Variante
 AI. comando per cancellare ultima mossa
 AJ.

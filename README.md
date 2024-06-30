@@ -1,5 +1,7 @@
 # EasyFish
 
+## If you're running the python script, be sure to have GBUtils.py on the same folder. You can grab it from the GBUtils project here on GitHub.
+
 ## Description
 **EasyFish** is a standalone software application designed specifically for blind chess players. The purpose of the software is to enhance the accessibility and enjoyment of chess by providing tools and features that cater to the needs of visually impaired players.
 
